@@ -1,0 +1,20 @@
+{
+  "name": "interview-docs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "docs:dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vuepress": "^1.9.10"
+  },
+  "dependencies": {
+    "vuepress-plugin-helper-live2d": "^1.0.2",
+    "vuepress-theme-yilia-plus": "^1.0.0"
+  }
+}
