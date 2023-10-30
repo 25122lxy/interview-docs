@@ -1,5 +1,5 @@
 module.exports = {
-    title: 'Code Diary',
+    title: '八股文突击',
     description: '八股文',
     theme: 'vuepress-theme-yilia-plus',//切换主题
     base: '/interview-docs/',
@@ -15,7 +15,7 @@ module.exports = {
     ],
     //base: '/',
     locales: {
-        '/': {
+        '/my-docs/Interview/01-Java基础': {
             lang: 'zh-CN'//时间中文格式
         }
     },
@@ -26,36 +26,21 @@ module.exports = {
         nav: [
             {text: 'Index', link: '/'},
             {
-                text: 'Interview',
+                text: 'Interview-Doc',
                 items: [
-                    {text: 'personnel', link: '/my-docs/Interview/00-personnel'},
+                
                     {text: 'Java基础', link: '/my-docs/Interview/01-Java基础'},
                     {text: 'Redis', link: '/my-docs/Interview/02-Redis'},
                     {text: 'MySQL', link: '/my-docs/Interview/03-MySQL'},
-                    {text: 'Java框架', link: '/my-docs/Interview/04-Java框架'},
-                    {text: '微服务', link: '/my-docs/Interview/05-微服务'},
-                    {text: '消息中间件', link: '/my-docs/Interview/06-消息中间件'},
-					{text: 'Java集合', link: '/my-docs/Interview/07-Java集合'},
-					{text: 'Java并发', link: '/my-docs/Interview/08-Java并发'},
-					{text: 'JVM', link: '/my-docs/Interview/09-JVM'},
-					{text: 'Linux', link: '/my-docs/Interview/10-Linux'},
-					{text: 'Hadoop', link: '/my-docs/Interview/11-Hadoop'},
-					{text: 'Hive', link: '/my-docs/Interview/12-Hive'},
-					{text: 'Spark', link: '/my-docs/Interview/13-Spark'},
-					{text: '数据采集工具', link: '/my-docs/Interview/16-数据采集工具'}
+					{text: 'Java框架', link: '/my-docs/Interview/04-Java框架'},
+					{text: '微服务', link: '/my-docs/Interview/05-微服务'},
+					{text: '消息中间件', link: '/my-docs/Interview/06-消息中间件'}
 
-                ]
-            },
-            {
-                text: 'lxy25122-blog',
-                items: [
-                    {text: 'Github', link: 'https://github.com/lxy25122'},
-                    {text: 'Gitee', link: 'https://gitee.com/tjlxy'}
                 ]
             }
         ],
         sidebar: [
-            //'auto',//开启右侧标题栏
+//            'auto',//开启右侧标题栏
             {
                 title: '学前必读',
                 path: '/',
@@ -69,21 +54,13 @@ module.exports = {
                 // path: '/my-docs/Interview/01-Java基础',
                 // collapsable: false, // 不折叠
                 children: [
-                    {title: "personnel", collapsable: true,path: "/my-docs/Interview/00-personnel"},
                     {title: "Java基础", collapsable: true,path: "/my-docs/Interview/01-Java基础"},
                     {title: 'Redis', path: "/my-docs/Interview/02-Redis"},
-                    {title: "MySQL", path: "/my-docs/Interview/03-MySQL"},
-					{title: "Java框架", path: "/my-docs/Interview/04-Java框架"},
-					{title: "微服务", path: "/my-docs/Interview/05-微服务"},
-					{title: "消息中间件", path: "/my-docs/Interview/06-消息中间件"},
-					{title: "Java集合", path: "/my-docs/Interview/07-Java集合"},
-					{title: "Java并发", path: "/my-docs/Interview/08-Java并发"},
-					{title: "JVM", path: "/my-docs/Interview/09-JVM"},
-					{title: "Linux", path: "/my-docs/Interview/10-Linux"},
-					{title: "Hadoop", path: "/my-docs/Interview/11-Hadoop"},
-					{title: "Hive", path: "/my-docs/Interview/12-Hive"},
-					{title: "Spark", path: "/my-docs/Interview/13-Spark"},
-					{title: "数据采集工具", path: "/my-docs/Interview/16-数据采集工具"}
+                    {title: 'MySQL', path: "/my-docs/Interview/03-MySQL"},
+					{title: 'Java框架', path: "/my-docs/Interview/04-Java框架"},
+					{title: '微服务', path: "/my-docs/Interview/05-微服务"},
+					{title: '消息中间件', path: "/my-docs/Interview/06-消息中间件"}
+
                 ],
             },
 
@@ -93,14 +70,14 @@ module.exports = {
         /* vuepress-theme-yilia-plus 配置 */
         yilia_plus: {
             // github-corner(关闭请设置为false)
-            github: {
-                url: "https://github.com/25122lxy/"
-            },
+//            github: {
+//                url: "https://github.com/25122lxy/"
+//            },
             footer: {
                 // 网站成立年份(若填入年份小于当前年份，则显示为 2018-2019 类似的格式)
                 since: 2023,
                 // 网站作者(关闭请设置为false)
-                author: '<a href="https://github.com/25122lxy/" target="_blank">lxy25122</a>',
+                author: 'lxy25122',
                 // 访问量统计功能(不蒜子)
                 busuanzi: {
                     // 是否启用(关闭请设置为false)
@@ -120,7 +97,8 @@ module.exports = {
                 enable: true,
                 // 模型名称(default: hibiki)>>>取值请参考：
                 // https://github.com/JoeyBling/hexo-theme-yilia-plus/wiki/live2d%E6%A8%A1%E5%9E%8B%E5%8C%85%E5%B1%95%E7%A4%BA
-                model: 'hibiki',
+//                model: 'wanko',
+                model: 'haruto',
                 display: {
                     position: "right", // 显示位置：left/right(default: 'right')
                     width: 135, // 模型的长度(default: 135)
