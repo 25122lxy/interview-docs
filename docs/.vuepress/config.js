@@ -34,7 +34,10 @@ module.exports = {
                     {text: 'MySQL', link: '/my-docs/Interview/03-MySQL'},
 					{text: 'Java框架', link: '/my-docs/Interview/04-Java框架'},
 					{text: '微服务', link: '/my-docs/Interview/05-微服务'},
-					{text: '消息中间件', link: '/my-docs/Interview/06-消息中间件'}
+					{text: '消息中间件', link: '/my-docs/Interview/06-消息中间件'},
+					{text: 'Java集合', link: '/my-docs/Interview/07-Java集合'},
+					{text: 'Java并发', link: '/my-docs/Interview/08-Java并发'},
+					{text: 'JVM', link: '/my-docs/Interview/09-JVM'}
 
                 ]
             }
@@ -59,7 +62,10 @@ module.exports = {
                     {title: 'MySQL', path: "/my-docs/Interview/03-MySQL"},
 					{title: 'Java框架', path: "/my-docs/Interview/04-Java框架"},
 					{title: '微服务', path: "/my-docs/Interview/05-微服务"},
-					{title: '消息中间件', path: "/my-docs/Interview/06-消息中间件"}
+					{title: '消息中间件', path: "/my-docs/Interview/06-消息中间件"},
+					{title: 'Java集合', path: "/my-docs/Interview/07-Java集合"},
+					{title: 'Java并发', path: "/my-docs/Interview/08-Java并发"},
+					{title: 'JVM', path: "/my-docs/Interview/09-JVM"}
 
                 ],
             },

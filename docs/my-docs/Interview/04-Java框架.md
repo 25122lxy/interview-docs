@@ -97,83 +97,199 @@ ApplicationContext是BeanFactory的子接口
 
 仅当用户使用支持 Web 的 ApplicationContext 时，最后三个才可用。
 
-### 8.如何理解IOC和DI
+### 8.如何理解IOC和DI✏️
 
-
+- “控制反转”
+  - 不用自己创建实例对象，交给Spring的bean工厂帮我们创建管理
+- “依赖注入”
+  - 通过配置，由容器动态的将某个依赖关系注入到组件之中
 
 
 ### 9.将一个类声明为Spring的bean的注解有哪些
 
+一般使用 @Autowired 注解自动装配 bean，要想把类标识成可用于 @Autowired 注解自动装配的 bean 的类,采用以下注解可实现：
 
+- `@Compoent`标志为Spring组件，可标注任意类为 Spring 组件。如果一个Bean不知道属于哪个层，可以使用@Component 注解标注。
+- `@Repository`持久层，主要用于数据库相关操作。
+- `@Service`业务层，主要涉及一些复杂的逻辑，需要用到 Dao层
+- `@Controller`SpringMVC控制层，主要用户接受用户请求并调用 Service 层返回数据给前端页面
 
-### 11.Spring中的bean生命周期✔
+### 11.Spring中的bean生命周期✔✏️
 
+- 创建前准备
 
+  在加载之前要从上下文和一些配置中解析并通过`BeanDefinition`类**查找Bean的定义信息**，比如，类的全路径，是否是延迟加载，是否是单例等等这些信息
 
-### 12.什么是Spring的内部bean
+- 创建实例化
 
+  调用**构造函数实例化bean**，得到对象
 
+- 依赖注入（设置bean属性）
 
-### 13.什么是Spring装配✔
+  如果实例化的Bean存在依赖其他Bean对象的一些情况，则需要对这些依赖的Bean进行对象注入，比如一些set方法注入，像平时开发用的 @Autowire都是这一步完成
 
+- 实现Aware接口，设置依赖信息
 
+  (BeanNameAware、BeanFactoryAware、ApplicationContextAware)，如果某一个bean实现了Aware接口就会重写方法执行
+
+- 初始化前，处理`@PostConstructor`注解，回调
+
+  bean的后置处理器BeanPostProcessor，这个是前置处理器
+
+- 初始化，处理InitializingBean接口
+
+  初始化方法，比如实现了接口InitializingBean或者自定义了方法 init-method标签或@PostContruct
+
+- 容器缓存
+
+  执行了bean的后置处理器BeanPostProcessor，主要是对bean进行增强，有可能在这里产生代理对象
+
+- 销毁实例
+
+  可以调用destroy方法进行销毁，或自定义销毁方法
+
+### 12.什么是Spring的内部bean✏️
+
+- 将`bean`用做另一个`bean`的属性
+
+### 13.什么是Spring装配✔✏️
+
+- 当`bean`在`spring`容器中组合在一起时，它被称为装配或`bean`装配（autowire）
 
 ### 14.自动装配有什么局限？
 
-
+- 覆盖的可能性
+- 基本元数据类型
+- 自动装配不太精确
 
 ### 15.Spring中出现同名bean怎么办
 
-
+- 同一配置文件内，以最上面定义的为准
+- 不同配置文件中存在的，后解析的配置文件会覆盖先解析的配置文件、
+- 同文件中，`@bean`的会生效，【`@ComponentScan`扫描进来的优先级是最低的 】
 
 ### 16.Spring怎么解决循环依赖问题✔？
 
-
+- 构造器的循环依赖（直接抛出）
+- 单例模式下的setter循环依赖（三级缓存）
+- 非单例循环依赖（无法处理）
 
 ### Spring中的循环引用✔
 
+循环依赖：循环依赖其实就是循环引用,也就是两个或两个以上的bean互相持有对方,最终形成闭环。比如A依赖于B,B依赖于A
 
+循环依赖在spring中是允许存在，spring框架依据三级缓存已经解决了大部分的循环依赖
+
+①一级缓存：单例池，缓存已经经历了完整的生命周期，已经初始化完成的 bean对象
+
+②二级缓存：缓存早期的bean对象（生命周期还没走完）
+
+③三级缓存：缓存的是ObjectFactory，表示对象工厂，用来创建某个对象的
 
 ### 循环依赖具体解决流程✔
 
+第一，先实例A对象，同时会创建ObjectFactory对象存入三级缓存 singletonFactories
 
+第二，A在初始化的时候需要B对象，这个走B的创建的逻辑
 
-### 构造方法出现了循环依赖怎么解决✔
+第三，B实例化完成，也会创建ObjectFactory对象存入三级缓存 singletonFactories
 
+第四，B需要注入A，通过三级缓存中获取ObjectFactory来生成一个A的对象同时存入二级缓存，这个是有两种情况，一个是可能是A的普通对象，另外一个是A的代理对象，都可以让ObjectFactory来生产对应的对象，这也是三级缓存的关键
 
+第五，B通过从通过二级缓存earlySingletonObjects 获得到A的对象后可以正常注入，B创建成功，存入一级缓存singletonObjects
 
-### 17.Spring中的单例bean的线程安全问题✔
+第六，回到A对象初始化，因为B对象已经创建完成，则可以直接注入B，A 创建成功存入一次缓存singletonObjects
 
+第七，二级缓存中的临时对象A清除
 
+### 构造方法出现了循环依赖怎么解决✔✏️
+
+由于bean的生命周期中构造函数是第一个执行的，spring框架并不能解决构造函数的的依赖注入，可以使用@Lazy懒加载，什么时候需要对象再进行bean对象的创建
+
+### 17.Spring中的单例bean的线程安全问题✔✏️
+
+- 线程安全问题都是由全局变量及静态变量引起的
+- 若有多个线程同时执行写操作，一般需要考虑线程同步，否则可能影响线程安全
+
+有状态bean和无状态bean
+
+- 有状态就是有数据存储功能，有实例变量的对象，线程不安全
+- 无状态就是一次操作，不能保存数据，没有实例对象，线程安全
+
+> 不是线程安全的，是这样的
+>
+> 当多用户同时请求一个服务时，容器会给每一个请求分配一个线程，这是多个线程会并发执行该请求对应的业务逻辑（成员方法），如果该处理逻辑中有对该单列状态的修改（体现为该单例的成员属性），则必须考虑线程同步问题。
+>
+> Spring框架并没有对单例bean进行任何多线程的封装处理。关于单例bean的线程安全和并发问题需要开发者自行去搞定。
+>
+> 比如：我们通常在项目中使用的Spring bean都是不可变的状态(比如 Service类和DAO类)，所以在某种程度上说Spring的单例bean是线程安全的。
+>
+> 如果你的bean有多种状态的话（比如 View Model对象），就需要自行保证线程安全。最浅显的解决办法就是将多态bean的作用由“singleton”变更为 “prototype”。
 
 ### 18.什么是AOP✔
 
+面向切面编程
 
+- 将程序中的交叉业务逻辑封装成一个切面，然后注入到目标对象中，AOP可以对某个对象或某些对象的功能进行增强，比如对象中的方法需要扩扩展业务，可以在执行某个方法之前额外的做一些事情，在某个方法执行之后额外的做一些事情
+- 将新的业务功能添加到已有的对象中，不影响原有业务
+
+> aop是面向切面编程，在spring中用于将那些与业务无关，但却对多个对象产生影响的公共行为和逻辑，抽取公共模块复用，降低耦合，一般比如可以做为公共日志保存，事务处理等
 
 ### AOP的使用情景有哪些?简述其实现原理✔
 
+1. **统一日志处理**
 
+2. 统一异常处理
+
+3. 访问限制（权限，限流等）
+
+4. **事务处理**
+
+5. 缓存管理等
+
+6. aop是面向切面编程，通过代理的方式（jdk或cglib）为程序统一添加功能，解决公共问题
 
 ### 你们项目中有没有使用到AOP
 
+我们当时在后台管理系统中，就是使用aop来记录了系统的操作日志主要思路是这样的，使用aop中的环绕通知+切点表达式，这个表达式就是要找到要记录日志的方法，然后通过环绕通知的参数获取请求方法的参数，比如类信息、方法信息、注解、请求方式等，获取到这些参数以后，保存到数据库
 
+### 19.Aop有哪些实现方式✏️
 
-### 19.Aop有哪些实现方式
+- 静态代理
+  - 在编译阶段就可生成 AOP 代理类  
 
-
+- 动态代理
+  - 在运行时在内存中“临时”生成 AOP 动态代理类  
 
 
 ### 20.Spring Aop and AspectJ Aop有什么区别
 
-
+- 动态代理方法实现
+- 静态代理方法实现
 
 ### 21.Spring框架中用到了那些设计模式✔
 
+- 工厂设计模式
+- 代理设计模式
+- 单例设计模式
+- 模板方法模式
+- 包装器设计模式
+- 观察者模式
+- 适配器模式
 
+### 22.Spring事务实现方式有哪些（如何实现）✔✏️
 
-### 22.Spring事务实现方式有哪些（如何实现）✔
+- 编程式事务管理
 
+  这种方式需要在代码中显式地使用事务管理器来开始、提交或回滚事务。开发人员需要手动编写代码来管理事务的边界和异常处理。
 
+- 声明式事务管理 `@Transactional注解就是声明式的。或xml配置事务`
+
+  这种方式通过将事务管理逻辑从业务逻辑中分离出来，在配置文件或使用注解的方式声明事务的属性。Spring提供了两种声明式事务管理的方法：基于XML的配置和基于注解的配置。
+
+- 注解驱动事务。。
+
+> spring实现的事务本质就是aop完成，对方法前后进行拦截，在执行方法之前开启事务，在执行完目标方法之后根据执行情况提交或者回滚事务。
 
 #### 在如下代码中，当调用insertA 方法的时候，如果insertB 插入b表的时候有异常，能否保证 insertA中的a 表插入成功，如果不能，应该如何修改
 
@@ -195,72 +311,122 @@ public class TestService{
 }
 ```
 
-
+1. 不能，在类上使用了@Transactional注解，默认开启了全局读写事务
+2. 可以细粒度在方法上加注解
 
 ### 23.Spring框架的事务管理有哪些优点
 
-
+- 提供了跨不同事务api 的一致编程模型
+- 支持声明式事务管理
+- 集成了Spring的各种访问抽象
 
 ### 24.Spring事务定义的传播规则✔
 
+- PROPAGATION_REQUIRED: 支持当前事务，如果当前没有事务，就新建一个事务。这是最常见的选择。
+- PROPAGATION_SUPPORTS: 支持当前事务，如果当前没有事务，就以非事务方式执行。
+- PROPAGATION_MANDATORY: 支持当前事务，如果当前没有事务，就抛出异常。
+- PROPAGATION_REQUIRES_NEW: 新建事务，如果当前存在事务，把当前事务挂起。
+- PROPAGATION_NOT_SUPPORTED: 以非事务方式执行操作，如果当前存在事务，就把当前事务挂起。
+- PROPAGATION_NEVER: 以非事务方式执行，如果当前存在事务，则抛出异常。
+- PROPAGATION_NESTED:如果当前存在事务，则在嵌套事务内执行。如果当前没有事务，则进行与PROPAGATION_REQUIRED类似的操作
 
+### 25.SpringMVC工作原理了解吗✔✏️
 
-### 25.SpringMVC工作原理了解吗✔
+前端控制器、处理器映射器、处理器、前端控制器、处理器适配器、适配器、model and view 视图解析器、前映射
 
+1、用户发送出请求到前端控制器（DispatcherServlet），这是一个调度中心
 
+2、前端控制器（DispatcherServlet）收到请求调用处理器映射器（Handler Mapping）。
+
+3、处理器映射器（Handler Mapping）找到具体的处理器（Handler）(可查找xml配置或注解配置)，生成处理器对象及处理器拦截器(如果有)，再一起返回给前端控制器（DispatcherServlet）。
+
+4、前端控制器（DispatcherServlet）调用处理器适配器（Handler Adapter）。
+
+5、处理器适配器（Handler Adapter）经过适配调用具体的处理器（Handler/Controller）。
+
+6、Controller执行完成返回ModelAndView对象。
+
+7、处理器适配器（Handler Adapter）将Controller执行结果ModelAndView返回给前端控制器（DispatcherServlet）。
+
+8、前端控制器（DispatcherServlet）将ModelAndView传给视图解析器（ViewReslover）。
+
+9、视图解析器（ViewReslover）解析后返回具体视图（View）。
+
+10、前端控制器（DispatcherServlet）根据View进行渲染视图（即将模型数据填充至视图中）。
+
+11、前端控制器（DispatcherServlet）响应用户。
 
 ### 26.简单介绍SpringMVC的核心组件✔
 
-
+- `DispatcherServlet`SpringMvc核心组件，是请求的入口，负责协调各个组件工作
+- `Handler`处理器
+- `HandlerMapping`处理器映射器
+- `HandlerAdapter` 处理器的适配器
+- `ViewResolver`视图解析器
 
 ### 27.`@Controller`注解有什么用
 
-
+- 标记一个类为Spring Web MVC 控制器 Controller
 
 ### 28.`@RequestMapping`注解有什么用
 
-
+- 配置处理器的HTTP 请求方法、url。。。
+- 用在类上面或方法上面
 
 ### 29.@RestController 和 @Controller 有什么区别
 
-
+- 提供了 Restful Api，返回 JSON 数据格式
 
 ### 30.@RequestMapping 和 @GetMapping 注解的不同之处在哪里
 
-
+- 注解位置
+- resultful Api
 
 ### 31.`@RequestParam`和`@PathVariable`两个注解的区别
 
-
+- `@RequestParam `参数从请求携带的参数中获取（xxx/index?name=zhansan&age=18）
+- `@PathVariable`从请求的url中获取（xxx/findById/{3}）
 
 ### 32.返回 JSON 格式使用什么注解
 
+- `@ResponseBody`
+- `@RestController` 
 
+### 33.什么是SpringMVC拦截器以及如何使用它✔✏️
 
-### 33.什么是SpringMVC拦截器以及如何使用它✔
+实现`org.springframework.web.servlet`包的`HandlerInteceptor`接口
 
-
+- `preHandle`在执行实际处理程序之前调用
+- `postHandle`在执行完实际程序之后调用
+- `afterCompletion`在完成请求后调用
 
 ### 34.SpringMVC和Structs2的异同
 
-
+- 入口不同
+  - Servlet控制器
+  - Filter过滤器
+- 配置映射不同
+  - 基于方法
+  - 基于类
+- 视图不同
 
 ### 35. REST 代表着什么 
 
-
+- 抽象转移
+  - 根据http协议从客户端发送协议到服务端
 
 
 ### 36. 什么是安全的 REST 操作
 
-
+-  是否安全的界限，在于是否修改服务端的资源
 
 ### 37. REST API 是无状态的吗
 
-
+- 是无状态的
 
 ### 38. REST安全吗? 你能做什么来保护它  
 
-
+- 通常不安全，需要开发任务自己实现安全机制
 
 ### 39.为什么要用SpringBoot✔✏️
 
@@ -330,9 +496,14 @@ public class TestService{
 - 启用CSRF保护
 - 使用内容安全策略防止XSS攻击
 
-### 45.Spring、SpringBoot和SpringCloud的关系
+### 45.Spring、SpringBoot和SpringCloud的关系✏️
 
-
+- Spring古老框架，可以解决企业开发中大部分问题
+  - IOC容器，管理bean，使用依赖注入实现控制反转
+  - 补充：SpringMVC是Spring对web框架的一个解决方案
+- SpringBoot是为了简化Spring的开发
+  - 快速开发应用，简化配置
+- **SpringCloud是简化了分布式系统的开发**，基于Springboot开发的，解决微服务治理的框架
 
 ### springboot是如何管理版本依赖的
 
@@ -346,153 +517,375 @@ public class TestService{
 
 答：
 
+1. springboot底层使用maven管理依赖，通过控制pom.xml父子关系来完成细节配置，在父pom中定义具体框架和版本号以及额外的信息。
+2. 提供了很多场景的spring-boot-starter 的 pom.xml文件，来标准化的引入依赖避免冲突
 
+### SpringBoot自动配置机制✏️
 
-### SpringBoot自动配置机制
+**初步理解**
 
+- **自动配置**的 Tomcat、SpringMVC 等
+- - **导入场景**，容器中就会自动配置好这个场景的核心组件。
+  - 以前：DispatcherServlet、ViewResolver、CharacterEncodingFilter....
+  - 现在：自动配置好的这些组件
+  - 验证：**容器中有了什么组件，就具有什么功能**
 
+```java
+    public static void main(String[] args) {
 
-### Springboot自动配置原理✔
+        //java10： 局部变量类型的自动推断
+        var ioc = SpringApplication.run(MainApplication.class, args);
 
+        //1、获取容器中所有组件的名字
+        String[] names = ioc.getBeanDefinitionNames();
+        //2、挨个遍历：
+        // dispatcherServlet、beanNameViewResolver、characterEncodingFilter、multipartResolver
+        // SpringBoot把以前配置的核心组件现在都给我们自动配置好了。
+        for (String name : names) {
+            System.out.println(name);
+        }
 
+    }
+```
+
+- **默认的包扫描规则**
+- - `@SpringBootApplication` 标注的类就是主程序类
+  - **SpringBoot只会扫描主程序所在的包及其下面的子包，自动的component-scan功能**
+  - **自定义扫描路径**
+- - - @SpringBootApplication(scanBasePackages = "com.atguigu")
+    - `@ComponentScan("com.atguigu")` 直接指定扫描的路径
+- **配置默认值**
+- - **配置文件**的所有配置项是和某个**类的对象**值进行一一绑定的。
+  - 绑定了配置文件中每一项值的类： **属性类**。
+  - 比如：
+- - - `ServerProperties`绑定了所有Tomcat服务器有关的配置
+    - `MultipartProperties`绑定了所有文件上传相关的配置
+    - ....参照[官方文档 (opens new window)](https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html#appendix.application-properties.server)：或者参照 绑定的 **属性类**。
+- 按需加载自动配置
+- - 导入场景`spring-boot-starter-web`
+  - 场景启动器除了会导入相关功能依赖，导入一个`spring-boot-starter`，是所有`starter`的`starter`，基础核心starter
+  - `spring-boot-starter`导入了一个包 `spring-boot-autoconfigure`。包里面都是各种场景的`AutoConfiguration`**自动配置类**
+  - 虽然全场景的自动配置都在 `spring-boot-autoconfigure`这个包，但是不是全都开启的。
+- - - 导入哪个场景就开启哪个自动配置
+
+总结： 导入场景启动器、触发 `spring-boot-autoconfigure`这个包的自动配置生效、容器中就会具有相关场景的功能
+
+### Springboot自动配置原理✔✏️
+
+在Spring Boot项目中的引导类上有一个注解@SpringBootApplication，这个注解是对三个注解进行了封装，分别是：
+
+- @SpringBootConfiguration
+- @EnableAutoConfiguration
+- @ComponentScan
+
+其中 @EnableAutoConfiguration 是实现自动化配置的核心注解。
+
+该注解通过 @Import 注解导入对应的配置选择器。关键的是内部就是读取了该项目和该项目引用的Jar包的classpath路径下METAINF/spring.factories文件中的所配置的类的全类名
+
+在这些配置类中所定义的Bean会根据条 件注解所指定的条件来决定是否需要将其导入到Spring容器中。
+
+一般条件判断会有像 @ConditionalOnClass 这样的注解，判断是否有对应的 class文件，如果有则加载该类，把这个配置类的所有的Bean放入spring容器中使用。
+
+> 1. **所加载使用的jar包 如果是比较常见的，spring都提供了默认配置，也就是不像以前一样需要把框架的每一个属性都要配置一遍，主要目的是简化开发**
+> 2. springboot 通过在启动类上添加注解 @SpringBootApplication 完成自动配置
+> 3. 内部完成了读取每个jar包下的`META-INF/spring.factories`和spring-boot-autoconfigure-2.6.7.jar中的默认配置
 
 **什么是起步依赖**
 
+指的是各种starter重点是pom.xml,其中包含了框架所需要的其他依赖以及默认配置文件，不需要我们手动配置了。
 
+### SpringBoot如何解决跨域问题✔✏️
 
-### SpringBoot如何解决跨域问题✔
+跨域指的是浏览器在执行网页中的JavaScript代码的时候，由于浏览器的同源策略的一个限制，只能访问同源的资源
 
+http://192.168.137.60:8080
 
+协议、域名、端口号，只要有一项不同，就能够造成跨域问题
 
-### 如何实现一个IOC容器  
+解决跨域就是在不破坏同源策略的情况下，能够安全地实现数据共享和交互
 
+在 Spring Boot 中跨域问题有很多种解决方案，Cors是在服务器后端解决跨域的方案
 
+1、使用`@CrossOrigin`注解实现跨域，可以用在类和方法上面
 
-### Spring单例bean和单例模式
+```java
+@CrossOrigin(origins = "http://localhost:8090")
+//origins指运行那些origins允许跨域，也可直接@CrossOrigin
+```
 
+2、通过配置文件，实现`WebMvcConfigurer`接口，重写`addCorsMappings`方法，配置允许跨域的请求源
 
+### 如何实现一个IOC容器  ✏️
 
-### Spring事务什么时候会失效（Spring中事务失效的场景有哪些）✔
+1、配置文件配置包扫描路径
 
+2、递归包扫描获取.class文件
 
+3、反射、确定需要交给IOC管理的类
 
-### 为什么有些公司禁止使用@Transactional声明式事务✔
+4、对需要注入的类进行依赖注入
 
+### Spring单例bean和单例模式✏️
 
+- 单例模式表示JVM中某个类的对象只会存在唯一一个
+- 而单例bean并不表示JVM中只能存在唯一的某个类的bean对象
+
+### Spring事务什么时候会失效（Spring中事务失效的场景有哪些）✔✏️
+
+- 发生自调用，类⾥⾯使⽤this调⽤本类的⽅法（this通常省略），此时这个this对象不是代理类，⽽是UserService对象本身！
+- 方法本身public：@Transactional 只能⽤于 public 的⽅法上，否则事务不会失效，如果要⽤在⾮ public ⽅法上，可以开启 AspectJ 代理模式。
+- 数据库不支持事务
+- 没有被Spring管理
+- 异常被吃掉，事务不会回滚(或者抛出的异常没有被定义，默认为RuntimeException)
+
+> 第一个，如果方法上异常捕获处理（try-catch），自己处理了异常，没有抛出，就会导致事务失效，所以一般处理了异常以后，别忘了抛出去就行了
+>
+> 第二个，如果方法抛出检查异常（throw ，例如ClassNotFoundException ），如果报错也会导致事务失效，最后在 spring事务的注解上，就是@Transactional上配置rollbackFor属性为 Exception，这样别管是什么异常，都会回滚事务
+>
+> 第三，我之前还遇到过一个，如果方法上不是public修饰的，也会导致事务失效
+
+### 为什么有些公司禁止使用@Transactional声明式事务✔✏️
+
+1、**在方法上增加@Transaction声明式事务**，如果一个方法中存在较多耗时的操作，很容易引发**长事务**的问题，而长事务会带来**锁的竞争**、影响性能，同时也会导致**数据库的连接池被消耗尽**、**影响到程序的正常执行**。
+
+2、如果方法存在嵌套调用，而被嵌套调用的方法也声明了@Transaction事务，这时就会出现事务嵌套的调用行为，**容易引起事务混乱**、**造成程序运行结果出现异常**。
+
+3、@Transaction的声明式事务是将事务控制逻辑放在注解中，如果项目中的复杂度增加，**事务的控制可能会变的更加复杂**，**导致代码的可读性和维护性下降**
+
+所有为了避免这一类问题，有些公司会推荐使用编程时事务，这样可以更加**灵活的去控制事务的范围**、**减少事务的锁定时间**、**提高系统的性能**
 
 ### Spring是什么
 
+轻量级的开源的J2EE框架。它是⼀个容器框架，⽤来装javabean（java对象），中间层框架（万能胶） 可以起⼀个连接作⽤，⽐如说把Struts和hibernate粘合在⼀起运⽤，可以让我们的企业开发更快、更简洁，Spring是⼀个轻量级的控制反转（IoC)和⾯向切⾯（AOP）的容器框架：
 
+- 从⼤⼩与开销两⽅⾯⽽⾔Spring都是轻量级的。
+- 通过控制反转(IoC)的技术达到松耦合的⽬的提供了⾯向切⾯编程的丰富⽀持，允许通过分离应⽤的业务逻辑与系统级服务进⾏内聚性的开发
+- 包含并管理应⽤对象(Bean)的配置和⽣命周期，这个意义上是⼀个容器。
+- 将简单的组件配置、组合成为复杂的应⽤，这个意义上是⼀个框架。
 
 ### Spring Boot是如何启动Tomcat的  
 
-### Spring Boot中配置⽂件的加载顺序是怎样的
+### Spring Boot中配置⽂件的加载顺序是怎样的✏️
 
+- 命令行参数
+- 系统属性
+- 系统环境变量
+- 配置文件
 
+### @Component和@Bean区别✔✏️
 
-### @Component和@Bean区别✔
+@Component注解是一个通用注解，可以用在任何类上，包括普通的Java类、业务逻辑组件、持续化对象等，通过Component注解，**Spring会自动去创建该类的实例注入到SpringIOC容器中**
 
+@Bean注解是用于配置类中声明一个Bean的，通常用在配置类的方法上面，表示把这个方法的返回对象注册到SpringIOC容器中，通过Bean注解，**可以自定义Bean的创建和初始化过程，包括指定Bean的名称、作用域、依赖关系等**，
 
+- 用途不同
+  - @Component注解的用于标识一个普通的类
+  - @Bean注解是在配置类中声明和配置Bean对象
+- 使用方式不同
+  - @Component注解是一个类级别的注解，Spring通过@ComponetsScan注解扫描并注册为Bean（SpringIOC容器中）
+  - @Bean注解是修饰在方法层面，在配置类中手动声明一个Bean的定义
+- 控制权不同
+  - @Component注解修饰的类是由Spring框架来创建和初始化的
+  - @Bean注解运行开发人员手动控制Bean 的创建和配置过程（更加灵活）
 
-### Spring 的常见注解有哪些✔
+### Spring 的常见注解有哪些✔✏️
 
+第一类是：声明bean，有@Component、@Service、@Repository、 @Controller
 
+第二类是：依赖注入相关的，有@Autowired、@Qualifier、@Resourse
+
+第三类是：设置作用域 @Scope
+
+第四类是：spring配置相关的，比如@Configuration，@ComponentScan 和 @Bean
+
+第五类是：跟aop相关做增强的注解 @Aspect，@Before，@After， @Around，@Pointcut
 
 ### SpringMVC常见的注解有哪些✔
 
+@RequestMapping：用于映射请求路径；
 
+@RequestBody：注解实现接收http请求的json数据，将json转换为java对象；
+
+@RequestParam：指定请求参数的名称；
+
+@PathViriable：从请求路径下中获取请求参数(/user/{id})，传递给方法的形式参数；
+
+@ResponseBody：注解实现将controller方法返回对象转化为json 对象响应给客户端。
+
+@RequestHeader：获取指定的请求头数据，
+
+还有像 @PostMapping、@GetMapping这些。
 
 ### Springboot常见注解有哪些✔
 
+Spring Boot的核心注解是@SpringBootApplication , 他由几个注解组成 :
 
+- @SpringBootConfiguration： 组合了- @Configuration注解，实现配置文件的功能；
+- @EnableAutoConfiguration：打开自动配置的功能，也可以关闭某个自动配置的选项
+- @ComponentScan：Spring组件扫描
 
 ## Mybatis
 
 ### 1.Mybatis是什么
 
-
+- 简化SQL开发，内部封装jdbc，加载驱动，创建连接等，可以通过xml或者注解的方式配置映射信息
 
 ### 2.Mybatis的优缺点✔
 
-
+- 优点
+  - 基于SQL语句编程，灵活
+  - 解除SQL与代码的耦合，统一管理
+  - 相比jdbc，减少50%以上的代码量
+  - **与各种数据库兼容**
+  - 集成Spring框架
+  - **提供映射标签（实体类对象与数据库中的字段）**
+- 缺点
+  - SQL编写工作量大（配置ORM字段映射等）
+  - SQL语句依赖于数据库，可移植性差
 
 
 ### 3.为什么说Mybatis是半自动ORM映射工具？它与全自动的区别在哪里
 
-
+- 需要手动编写SQL
 
 ### 4.Hibernate和MyBatis的区别✔
 
+- 相同点：都是对jdbc的封装，持久层的框架，dao层的开发
+- 不同点
+  - 映射关系
+  - **SQL优化**
+  - 开发难易程度和学习成本
 
+MyBatis 是一个小巧、方便、高效、简单、直接、半自动化的持久层框架，
+
+Hibernate 是一个强大、方便、高效、复杂、间接、全自动化的持久层框架
 
 ### 5.JDBC编程有哪些不足之处，Mybatis是如何解决这些问题的
 
+- 配置数据连接池，创建、释放造成资源浪费，影响系统性能
+  - 在sqlMapConfig中配置数据连接池，方便管理
+- SQL语句在代码中，不易维护，SQL变动需要改变java代码
+  - 将SQL与java代码分离，卸载xml文件中
+- **SQL传参麻烦，需要占位符一一对应**
+  - mybatis自动将java对象映射到SQL语句
+- **数据库与java对象映射麻烦，解析需要遍历**
+  - Mybatis自动将SQL执行结果映射至java对象
 
 
+### 6.Mybatis编程步骤是什么样的✏️
 
-### 6.Mybatis编程步骤是什么样的
-
-
-
-### 8.Mybatis的优点
-
-
-
-### 9.Mybatis框架的缺点
-
-
+- `SqlSessionFactory`
+- `SqlSession`
+- 执行数据库操作
+- 提交事务`sessuib.commit()`
+- 关闭会话`session.close()`
 
 ### Mybatis是如何进行分页的✔
 
+1、直接在`select`语句上增加数据库提供的分页关键字，然后在应用程序里面传递当前页，以及每页展示条数即可
 
+2、使用Mybatis提供的`RowBounds`对象，实现内存级别分页
+
+3、基于Mybatis里面的`Interecptor`拦截器，在`select`语句执行之前，动态去拼接分页的关键字
 
 ### 10.Mybatis中#{}和${}的区别✔
 
+**`#{}`预编译处理，是占位符，预编译处理？？？**
 
+**`${}`拼接符，字符串替换，没有预编译处理**
 
 ### 11.通常一个XML映射文件，都会写一个Dao接口与之对应，那么这个Dao接口的工作原理是什么？Dao接口里的方法、参数不同时，方法能重载吗
 
-
+- 不能（ 接口全限名+方法名的拼接字符串作为key值 ）
 
 ### 12.在Mapper中如何传递多个参数
 
-
+- xml中：`#{0}`代表接收的是Dao层的第一个参数`#{1}`代表Dao层的第二个参数。。
+- 使用注解：dao层参数前加`@Param`注解
+- 多个参数封装成Map集合
 
 ### 13.Mybatis动态SQL有什么用？执行原理是什么？有哪些动态SQL
 
-
+- 根据表达式的值完成逻辑判断，并动态拼接SQL的功能
+- `trim、where、set、foreach、if、choose、when、otherwise、bind`
 
 ### 14.XML映射文件中，不同的xml映射文件id是否可以重复
 
-
+- `namespace+id`是作为Map<String,MapperStatement>的key使用，如果没有`namespace`，就剩下id，那么id重复会导致数据互相覆盖。
 
 ### 15.Mybatis实现一对一有几种方式？具体是怎么操作的
 
+- 联合查询
+  - 多张表联合查询
 
+- 嵌套查询
+  - 先查一个表。在根据外键查另一个表
 
 ### 16.Mybatis的一级、二级缓存（缓存机制）✔
 
+Mybatis里面设计了二级缓存来提升数据的一个检索效率，避免每一次数据的检索都去查询数据库，一级缓存是`SqlSession`级别的一个缓存，也叫本地缓存，因为每一个用户在执行查询的时候，都需要使用`SqlSession`来执行，为了避免每一次都去查询数据库，Mybatis把查询出来的数据库缓存到`SqlSession`的本地缓存里面，后续Sql如果在命中缓存的情况下，就可以直接到本地缓存去读取这样的一个数据，如果想要实现跨`SqlSession`级别的一个缓存，一级缓存是无法做到的，因此引入了二级缓存，当多个用户在进行查询数据的时候，只要有任何一个`SqlSession`拿到了数据，就会放入到二级缓存里面，那么其他`SqlSession`就可以直接从二级缓存里面去加载数据。
 
+- 一级缓存
+  - 作用域session，当flush、close后，cache将清空，默认打开一级缓存
+
+- 二级缓存
+  - HashMap存储，作用域为Mapper（namespace），
+
+
+> mybatis的一级缓存: 基于 PerpetualCache 的 HashMap 本地缓存，其存储作用域为 Session，当Session进行flush或close之后，该Session中的所有Cache 就将清空，默认打开一级缓存
+>
+> 关于二级缓存需要单独开启 
+>
+> 二级缓存是基于namespace和mapper的作用域起作用的，不是依赖于SQL session，默认也是采用 PerpetualCache，HashMap 存储。 
+>
+> 如果想要开启二级缓存需要在全局配置文件和映射文件中开启配置才行。
 
 ### Mybatis的二级缓存什么时候会清理缓存中的数据✔
 
-
+当某一个作用域(一级缓存 Session/二级缓存Namespaces)的进行了新增、修改、删除操作后，默认该作用域下所有 select 中的缓存将被 clear
 
 ### 18.使用Mybatis的Mapping接口调用时有哪些要求
 
-
+- 接口方法名和xml文件中id相同
+- 接口方法的输入参数类型和xml文件中ParameterType类型相同
+- 接口方法的输出参数类型和xml文件中resultType类型相同
+- namespace是mapper接口的类路径
 
 ### Mybatis的执行流程✔
 
+①读取MyBatis配置文件：mybatis-config.xml加载运行环境和映射文件 
 
+②构造会话工厂SqlSessionFactory，一个项目只需要一个，单例的，一般由 spring进行管理
+
+③会话工厂创建SqlSession对象，这里面就含了执行SQL语句的所有方法 
+
+④操作数据库的接口，Executor执行器，同时负责查询缓存的维护 
+
+⑤Executor接口的执行方法中有一个MappedStatement类型的参数，封装了映射信息 
+
+⑥输入参数映射 
+
+⑦输出结果映射
 
 ### Mybatis是否支持延迟加载✔
 
+延迟加载的意思是：就是在需要用到数据时才进行加载，不需要用到数据时就不加载数据。
 
+Mybatis支持一对一关联对象和一对多关联集合对象的延迟加载
+
+在Mybatis配置文件中，可以配置是否启用延迟加载
+
+lazyLoadingEnabled=true|false，默认是关闭的
 
 ### 延迟加载的底层原理知道吗
 
+延迟加载在底层主要使用的CGLIB动态代理完成的
 
+第一是，使用CGLIB创建目标对象的代理对象，这里的目标对象就是开启了延迟加载的mapper
+
+第二个是当调用目标方法时，进入拦截器invoke方法，发现目标方法是null 值，再执行sql查询
+
+第三个是获取数据以后，调用set方法设置属性值，再继续查询目标方法，就有值了
 
 ## Other
 
@@ -569,6 +962,45 @@ jsp本质上就是servlet
 代表：异常信息
 
 作用：获取页面中的异常
+
+### vue中的钩子函数
+
+在 Vue.js 中，钩子函数指的是在组件生命周期中可以用来挂载自定义逻辑的一系列方法。这些钩子函数允许你在特定的生命周期阶段执行代码，以便在组件被创建、更新或销毁时实现一些特定的行为。
+
+以下是 Vue.js 中常用的生命周期钩子函数：
+
+1. **beforeCreate**: 在实例初始化之后，数据观测 (data observer) 和 event/watcher 事件配置之前被调用。
+2. **created**: 实例已经创建完成之后被调用。在这一步，实例已完成以下的配置：数据观测 (data observer)，属性和方法的运算，watch/event 事件回调。然而，挂载阶段还没开始，$el 属性目前不可见。
+3. **beforeMount**: 在挂载开始之前被调用：相关的 render 函数首次被调用。
+4. **mounted**: el 被新创建的 vm.$el 替换，并挂载到实例上去之后调用该钩子。
+5. **beforeUpdate**: 数据更新时调用，发生在虚拟 DOM 重新渲染和打补丁之前。
+6. **updated**: 由于数据更改导致的虚拟 DOM 重新渲染和打补丁后调用。
+7. **beforeDestroy**: 在实例销毁之前调用。实例仍然完全可用。
+8. **destroyed**: 实例销毁后调用。该钩子被调用后，对应Vue实例的所有指令都被解绑，所有事件监听器被移除，所有子实例也会被销毁。
+
+这些钩子函数允许开发者在组件生命周期的不同阶段注入自定义逻辑，以便进行数据处理、异步操作、DOM 操作等。通过合理地利用这些钩子函数，可以更好地控制组件的行为，实现更加复杂的交互和逻辑。
+
+### Get请求与Post请求区别
+
+1. 参数传递方式不同
+
+GET请求中，参数是通过URL传递的，即将参数以键值对的形式附加在URL后面，使用“?”分隔参数和URL，使用“&”连接多个参数。例如：http://www.example.com?name=John&age=22。由于URL的长度存在限制，GET请求传递的参数大小也存在一定限制。
+
+而POST请求中，参数是通过HTTP请求体传递的，即将参数封装在HTTP请求体中发送给服务器。这种方式可以传递更多的参数，并且参数的大小没有限制。
+
+2. 安全性不同
+
+因为GET请求中参数是通过URL传递的，所以参数会暴露在URL中，容易被第三方获取。而POST请求中参数是放在请求体中的，相对来说比较安全。
+
+3. 缓存机制不同
+
+因为GET请求的参数是以URL形式传递的，所以浏览器可以缓存GET请求的结果，下次再发起同样的请求时，直接从缓存中获取结果。而POST请求不支持缓存机制。
+
+4. 适用场景不同
+
+一般来说，GET请求适合处理读取数据的操作，如查询、搜索等；而POST请求适合处理写入数据的操作，如表单提交、文件上传等。
+
+总的来说，GET请求和POST请求各有优缺点，需要根据具体的场景选择使用。
 
 ### JDBC连接数据库步骤
 
