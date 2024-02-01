@@ -37,7 +37,8 @@ module.exports = {
 					{text: '消息中间件', link: '/my-docs/Interview/06-消息中间件'},
 					{text: 'Java集合', link: '/my-docs/Interview/07-Java集合'},
 					{text: 'Java并发', link: '/my-docs/Interview/08-Java并发'},
-					{text: 'JVM', link: '/my-docs/Interview/09-JVM'}
+					{text: 'JVM', link: '/my-docs/Interview/09-JVM'},
+					{text: '数据结构与算法', link: '/my-docs/Interview/数据结构与算法'}
 
                 ]
             }
@@ -65,7 +66,8 @@ module.exports = {
 					{title: '消息中间件', path: "/my-docs/Interview/06-消息中间件"},
 					{title: 'Java集合', path: "/my-docs/Interview/07-Java集合"},
 					{title: 'Java并发', path: "/my-docs/Interview/08-Java并发"},
-					{title: 'JVM', path: "/my-docs/Interview/09-JVM"}
+					{title: 'JVM', path: "/my-docs/Interview/09-JVM"},
+					{title: '数据结构与算法', path: "/my-docs/Interview/数据结构与算法"}
 
                 ],
             },
