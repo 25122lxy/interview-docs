@@ -38,7 +38,9 @@ module.exports = {
 					{text: 'Java集合', link: '/my-docs/Interview/07-Java集合'},
 					{text: 'Java并发', link: '/my-docs/Interview/08-Java并发'},
 					{text: 'JVM', link: '/my-docs/Interview/09-JVM'},
-					{text: '数据结构与算法', link: '/my-docs/Interview/数据结构与算法'}
+					{text: '数据结构与算法', link: '/my-docs/Interview/数据结构与算法'},
+					{text: '校园行(Campus-trip)', link: '/my-docs/Interview/校园行(Campus-trip)'},
+					{text: '知识小站(Knowledge-Station)', link: '/my-docs/Interview/知识小站(Knowledge-Station)'}
 
                 ]
             }
@@ -67,7 +69,9 @@ module.exports = {
 					{title: 'Java集合', path: "/my-docs/Interview/07-Java集合"},
 					{title: 'Java并发', path: "/my-docs/Interview/08-Java并发"},
 					{title: 'JVM', path: "/my-docs/Interview/09-JVM"},
-					{title: '数据结构与算法', path: "/my-docs/Interview/数据结构与算法"}
+					{title: '数据结构与算法', path: "/my-docs/Interview/数据结构与算法"},
+					{title: '校园行(Campus-trip)', path: "/my-docs/Interview/校园行(Campus-trip)"},
+					{title: '知识小站(Knowledge-Station)', path: "/my-docs/Interview/知识小站(Knowledge-Station)"}
 
                 ],
             },

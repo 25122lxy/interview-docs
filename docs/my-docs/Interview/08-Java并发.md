@@ -698,6 +698,531 @@ public class Person implements Runnable{
 - 是一个把大任务分割成若干个小任务，最终汇总每个小任务结果后得到大任务结果的框架
 - 分而治之+工作窃取算法
 
+## Volatile
+
+### 介绍一下Java Memory Model（JMM）
+
+Java内存模型是Java虚拟机规范中定义的一种内存模型规范，也就是说JMM知识一种规范，即标准化。不同的虚拟机厂商依据这套规范，来做底层具体的实现。了解这套规范，先从计算机内存模型开始聊起。
+
+<font color=blue>**计算机的内存模型**</font>
+
+![image-20240207120522741](https://gitee.com/tjlxy/img/raw/master/image-20240207120522741.png)
+
+从图中可以看到，CPU和内存之间加入了一个高速缓存的角色。在目前的计算机中，CPU的计算速度远远大于计算机存储的速度。为了提升整体性能，在CPU和内存之间加入了高速缓存。
+
+CPU将计算需要用到的数据暂存进缓存中。当计算结束后，再将缓存中的数据存入到内存中。这样CPU的运算可以在缓存中高速进行。
+
+但这种情况是在多核CPU中会存在一个问题，多个CPU使用各自的高速缓存，但多个高速缓存在共享同一内存，此时就有可能一个CPU更新了数据，但另一个CPU还在操作老数据。导致脏数据的读写问题，此时就需要缓存一致性协议来解决这个数据一致性的问题。
+
+<font color=blue>**JMM**</font>
+
+![image-20240207173652397](https://gitee.com/tjlxy/img/raw/master/image-20240207173652397.png)
+
+一段代码中的多线程，操作的共享变量，即成员变量或类变量。线程在操作共享变量时，先从主内存中将变量拷贝到工作内存中，然后线程在自己的工作内存中操作。线程不能访问别人工作内存中的内容。线程间对变量值的传递是通过主内存进行中转。这个操作就会导致可见性问题，即一个线程更新了共享变量，但另一个已经加载了数据到自己工作内存的线程，是没办法看到最新的变量的值。
+
+举例说明：
+
+```java
+public class MyThread extends Thread{
+
+    private boolean flag = false;
+
+    public boolean isFlag() {
+        return flag;
+    }
+
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        flag = true;
+        System.out.println("flag=" + flag);
+    }
+}
+
+public class Demo1 {
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread myThread = new MyThread();
+        myThread.start();
+        while (true){
+            Thread.sleep(500);
+            if (myThread.isFlag()){
+                System.out.println("here......");
+            }
+        }
+    }
+
+}
+
+//运行打印，结果表面：线程不能访问别人工作内存中的内容。线程间对变量值的传递是通过主内存进行中转。这个操作就会导致可见性问题
+flag=true
+```
+
+### 可见性解决方案（synchronized、JMM、Volatile）
+
+<font color=blue>**1、给代码加锁**</font>
+
+例如上述例子
+
+```java
+public class Demo1 {
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread myThread = new MyThread();
+        myThread.start();
+        while (true){
+            //实现同步代码块效果
+            synchronized (myThread){
+                if (myThread.isFlag()){
+                    System.out.println("here......");
+                }
+            }
+        }
+        
+    }
+}
+```
+
+<font color=blue>**JMM数据同步**</font>
+
+![image-20240207183027935](https://gitee.com/tjlxy/img/raw/master/image-20240207183027935.png)
+
+上述例子没有使用解决可见性问题的数据同步执行流程：
+
+![image-20240207184209218](https://gitee.com/tjlxy/img/raw/master/image-20240207184209218.png)
+
+- lock(锁定)：作用于主内存的变量，把一个变量标记为一条线程独占状态（触发总线锁）
+- unlock(解锁)：作用于主内存的变量，把一个处于锁定状态的变量释放出来，释放后的变量才可以被其他线程锁定
+- read(读取)：作用于主内存的变量，把一个变量值从主内存传输到线程的工作内存中，以便随后的load动作使用
+- Ioad(载入)：作用于工作内存的变量，它把read操作从主内存中得到的变量值放入工作内存的变量副本中
+- use(使用)：作用于工作内存的变量，把工作内存中的一个变量值传递给执行引擎
+- assign(赋值)：作用于工作内存的变量，它把一个从执行引擎接收到的值赋给工作内存的变量、
+- store(存储)：作用于工作内存的变量，把工作内存中的一个变量的值传送到主内存中，以便随后的write的操作
+- write(写入)：作用于工作内存的变量，它把store操作从工作内存中的一个变量的值传送到主内存的变量中
+
+<font color=blue>**2、使用JMM解决可见性问题**</font>
+
+程序会按照上面的流程，**在使用synchronized的代码前后，线程会获得锁，清空工作内存**。read将数据读到工作内存并load成为最新的
+副本，再通过store和write将数据写会主内存。而获取不到锁的线程会阻塞等待，所以变量的值一直都是最新的。
+
+在使用synchronized的代码前后，线程会获得锁，清空工作内存。MyThread线程（图中CPU核2）完成read、load、store、write，main线程（图中CPU核1）会从主内存中获得最新的数据，解决可见性问题。
+
+<font color=blue>**3、使用Volatile保证可见性**</font>
+
+除了Synchronized外，Volatile也可以解决可见性问题
+
+```java
+public class Demo2 {
+
+    public static void main(String[] args) throws InterruptedException {
+        MyThread2 myThread = new MyThread2();
+        myThread.start();
+        while (true) {
+            if (myThread.isFlag()) {
+                System.out.println("here......");
+            }
+        }
+
+    }
+
+}
+
+class MyThread2 extends Thread {
+
+    private volatile boolean flag = false;
+
+    public boolean isFlag() {
+        return flag;
+    }
+
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        flag = true;
+        System.out.println("flag=" + flag);
+    }
+}
+```
+
+使用了Volatile后 ，操作数据的线程先从主内存中把数据读到自己的工作内存中。**如果有线程对volatile修饰的变量进行操作并且写回了主内存，则其他已读取该变量的线程中，该变量副本将会失效。其他线程需要从主内存中加载一份最新的变量值。**
+
+Volatile保证了共享变量的可见性。当有的线程修改了Volatile修饰的变量值并写回到主内存后，其他线程能立即看到最新的值。
+
+但是Volatile不能保证原子性。
+
+### Volatile为什么不能保证原子性，如何解决
+
+**原子性问题的出现**，看下面这个例子：
+
+```java
+public class AtomicityDemo1 {
+    private static int count = 0;
+    static Object object = new Object();
+    public static void main(String[] args) {
+        //创建CountDownLatch对象，值变成0之前可以让线程阻塞
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        for (int i = 0; i < 10; i++) {
+            Thread thread = new Thread(() -> {
+                try {
+                    //值变成0之前可以让线程阻塞
+                    countDownLatch.await();
+                    for (int j = 0; j < 500; j++) {
+                        count++;
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+            thread.start();
+        }
+        try {
+            Thread.sleep(500);
+            countDownLatch.countDown();//值(1)-1 -> 0 线程开始执行
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(count);
+    }
+}
+```
+
+在这个例子中，并不会每次count的结果是5000，有的时候不足1000，于是做如下调整
+
+```java
+private static volatile int count = 0;
+```
+
+当给变量count前加上了Volatile修饰后，发现结果依然有可能不足1000，看下`count++`的执行过程
+
+![image-20240208205424614](https://gitee.com/tjlxy/img/raw/master/image-20240208205424614.png)
+
+`count++`在执行引擎中被分成了两步操作：
+
+- 1、`count=0`，先将count值初始化为0
+- 2、`count=count+1`，再执行+1的操作
+
+这两步操作在左边的线程执行完第一步，但还没执行第二步时右边的线程抢过CPU控制器开始完成+1的操作后写入到主内存，**由于volatile的可见性（当有一个线程有变化，会立即通知其他线程来更新工作内存，让接下来的多个操作失效，所以不能保证原子性）**，于是左边的线程工作内存中的count副本失效了，相当于左边这一次+1的操作就被覆盖掉了
+
+因此，volatile不能保证原子性
+
+<font color=blue>**如何解决？——加锁**</font>
+
+```java
+public class AtomicityDemo1 {
+    private static int count = 0;
+    static Object object = new Object();
+    public static void main(String[] args) {
+        //创建CountDownLatch对象，值变成0之前可以让线程阻塞
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        for (int i = 0; i < 10; i++) {
+            Thread thread = new Thread(() -> {
+
+                try {
+                    //值变成0之前可以让线程阻塞
+                    countDownLatch.await();
+                    for (int j = 0; j < 500; j++) {
+                        //加锁
+                        synchronized (object){
+                            count++;
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            });
+            thread.start();
+        }
+
+        try {
+            Thread.sleep(500);
+            countDownLatch.countDown();//值(1)-1 -> 0 线程开始执行
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(count);
+
+    }
+
+}
+```
+
+### Volatile如何保证有序性
+
+**指令重排**情况的出现
+
+```java
+public class RecorderDemo {
+
+    private static int x = 0, y = 0;
+    private static int a = 0, b = 0;
+
+    public static void main(String[] args) throws InterruptedException {
+        int i = 0;
+
+        for (;;){
+            i++;
+            x = 0;
+            y = 0;
+            a = 0;
+            b = 0;
+            Thread thread1 = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    shortWait(10000);//等待1秒
+                    a = 1;
+                    x = b;
+                }
+            });
+            Thread thread2 = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    shortWait(10000);//等待1秒
+                    b = 1;
+                    y = a;
+                }
+            });
+            thread1.start();
+            thread2.start();
+            thread1.join();//t1线程执行完才能执行后续代码
+            thread2.join();//t2线程执行完才能执行后续代码
+            String result = "第" + i + "次:" + x + "," + y;
+            System.out.println(result);
+            if (x == 0 && y ==0){
+                break;
+            }
+        }
+
+    }
+
+    /**
+     * 延迟 interval 纳秒
+     * @param interval
+     */
+    public static void shortWait(long interval){
+        long start = System.nanoTime();
+        long end;
+        do {
+            end = System.nanoTime();
+        }while (start + interval >= end);
+    }
+
+}
+    /**
+     * 输出
+     * ...
+     * 第40次:1,0
+     * 第41次:0,1
+     * 第42次:0,1
+     * 第43次:0,1
+     * 第44次:0,1
+     * 第45次:1,1
+     * ...
+     */
+```
+
+在这个例子中，x和y的值只会有三种情况：
+
+- 1、x=1 y=1
+- 2、x=0 y=1
+- 3、x=1 y=0
+
+如果发生指令重排，才会出现第四种：
+
+- x=0 y=0
+
+![image-20240209160020622](https://gitee.com/tjlxy/img/raw/master/image-20240209160020622.png)
+
+为了提高性能，编译器和处理器常常会对既定代码的执行顺序进行指令重排序
+
+![image-20240209170103194](https://gitee.com/tjlxy/img/raw/master/image-20240209170103194.png)
+
+系统为了提升执行效率，在不影响最终结果的前提下，系统会对要求执行的指令进行重排序。
+
+重排序分为以下几种：
+
+- 编译器优化的重排序：编译器在不改变单线程程序语义的前提下重新安排语句的执行顺序。
+- 指令级并行的重排序：如果不存在数据依赖性，处理器可以改变语句对应机器指令的执行顺序。
+- 内存系统的重排序：由于数据读写过程涉及到多个缓冲区，这使得加载和存储的操作看上去可能是乱序执行，于是需要内存系统的重排序。
+
+**as-if-seriali语义**
+
+不管怎么重排序，单线程程序的执行结果不能被改变。编译器、runtime和处理器都必须遵守“as--if-serial语义"。
+
+也就是说，编译器和处理器不会对存在数据依赖关系的操作做重排序，因为这种重排序会改变执行结果。但是，如果操作之间不存在数据
+依赖关系，这些操作就可能被编译器和处理器重排序。
+
+**指令重排**可能造成的问题：空指针，（将对象的创建过程进行指令重排，高并发时，可能返回对象的引用时，对象还未创建，导致空指针异常）
+
+<font color=blue>**使用volatile禁止指令重排**</font>
+
+使用Volatile可以禁止指令重排优化，从而避免多线程环境下程序出现乱序执行的现象。**Volatile通过设置内存屏障来解决指令重排优化**。(Memory Barrier)
+
+**内存屏障**
+
+Java编译器会在生成指令系列时在适当的位置会插入“内存屏障指令”来禁止特定类型的处理器排序。下面是内存屏障指令：
+
+| 屏障类型   | 指令示例                 | 说明                                                         |
+| ---------- | ------------------------ | ------------------------------------------------------------ |
+| LoadLoad   | Load1;LoadLoad;Load2     | 保证Load1操作在Load2之前执行                                 |
+| StoreStore | Store1;StoreStore;Store2 | 在Store2及其后的写操作执行前，保证Store1的写操作已刷新到主内存 |
+| LoadStore  | Load1;LoadStore;Store2   | 在Store2及其后的写操作执行前，保证load1的读操作已经结束      |
+| StoreLoad  | Store1;StoreLoad;Load    | 保证Store1的写操作已经刷新到主内存之后，Load2及其后的读操作才能执行 |
+
+如果在指令间插入了一条Memory Barrier则会告诉编译器和CPU，不管什么指令都不能和这条Memory Barrier指令重排序，也就是说**通过插入内存屏障禁止在内存屏障前后的指令执行重排序优化**。Memory Barrier的另外一个作用是强制刷出各种CPU的缓存数据，因此任何CPU上的线程都能读取到数据的最新版本。总之，volatile变量正是通过内存屏障实现其在内存中的语义，即可见性和禁止重排优化。
+
+经典的懒汉式单例模式，可以被指令重排导致错误的结果
+
+```java
+public class Singleton {
+
+    private static Singleton instance;
+
+    // 私有构造器
+    private Singleton(){
+
+    }
+
+    public static Singleton getInstance(){
+        //第一重检查锁定
+        if (instance == null){
+            //同步锁定代码块
+            synchronized (Singleton.class){
+                //第二重检查锁定
+                if (instance == null){
+                    //注意：这里是非原子操作
+                    instance = new Singleton();
+                }
+            }
+        }
+        return instance;
+    }
+
+}
+```
+
+如果在高并发场景下，因为`instance = new Singleton()`是非原子操作，这个对象的创建经历这么几个步骤：
+
+- 分配内存空间
+- 通过构造器来初始化实例
+- 返回地址给引用
+
+如果此时发生了指令重排，先执行了分配内存空间后直接返回地址给引用，再进行初始化。此时在这个过程中另一个线程抢占，虽然引用不为空，但对象还没有被实例化，于是报空指针异常。
+
+可以通过加入volatile来防止指令重排。
+
+```java
+	//防止指令重排
+    private static volatile Singleton instance;
+```
+
+**Volatile指令重排语义**
+
+为了实现Volatile的内存语义，JMM会限制特定类型的编译器和处理器重排序，JMM会针对编译器制定排序规则
+
+Volatile重排序规则表：
+
+| 第一个操作 | 第二个操作：普通读写             | 第二个操作：volatile读           | 第二个操作：volatile写 |
+| :--------- | -------------------------------- | -------------------------------- | ---------------------- |
+| 普通读写   | 可以重排                         | <font color=blue>可以重排</font> | 不可以重排             |
+| Volatile读 | 不可以重排                       | 不可以重排                       | 不可以重排             |
+| Volatile写 | <font color=blue>可以重排</font> | 不可以重排                       | 不可以重排             |
+
+这个规则在代码中体现：
+
+```java
+public class MemoryBarrierDemo{
+    int a;
+    public volatile int m1 = 1;
+    public volatile int m2 = 2;
+    
+    public void readAndWrite(){
+        int i = m1;//第一个volatile读
+        int j = m2;//第二个volatile读
+        
+        //相对来说 （普通写、Volatile读）可能造成指令重排
+        a = i + j;//普通写
+        int i = m1;//第一个Volatile读
+        
+        m1 = i + 1;//第一个Volatile写
+        m2 = j * 2;//第二个volatile写
+        
+        a = i + j;//普通写
+        
+        // （volatile写、普通读） 可能造成指令重排
+        m1 = i + 2;//第一个Volatile写
+        a = 3;//普通读
+        
+    }
+}
+```
+
+### MESI缓存一致性协议（Volatile保证可见性）
+
+在介绍Volatile保证可见性时，当两个线程在操作一个volatile修饰的变量时，操作数据的线程先从主内存中把数据读到自己的工作内存中。如果有线程对volatile修饰的变量进行操作并且写回了主内存，则其他已读取该变量的线程中，该变量副本将会失效。其他线程需要主内存中重新加载一份最新的变量值。
+
+那么被迫更新变量的线程是怎么知道操作的数据已被其他线程更新了呢？这就跟MESI缓存一致性协议有关系。
+
+早起技术较为落后，对总线上锁直接使用总线锁，也就是说CPU1访问到，CPU2一定不能操作， 总线锁并发性较差。MESI方式上锁是目前较为和谐的总线上锁的方式。
+
+![image-20240214151837250](https://gitee.com/tjlxy/img/raw/master/image-20240214151837250.png)
+
+MESI协议缓存状态是四个单词的首字母：
+
+- M（Modified修改）：当CPU2对变量进行修改时，现在CPU内的缓存行中上锁，并向总线发信号，此时CPU2中的变量状态为M
+- E（Exclusive独享）：当CPU1读取一个变量时，该变量在工作内存中的状态是E
+- S（Shared共享）：当CPU2读取该变量时，两个CPU中该变量的状态由E转为S
+- I（Invalid无效）：CPU1嗅探到变量被其他CPU修改的信号，于是将自己缓存行中的变量状态设置为i，即失效。则CPU再从内存中获取最新数据
+
+**总线风暴**
+
+由于volatile的MESI缓存一致性协议，需要不断的从主内存嗅探和CAS不断循环，无效交互导致总线带宽达到峰值。所以不要大量使用Volatile，至于什么时候去使用Volatile，什么时候使用锁，根据场景区分。
+
+
+
+### volatile总结
+
+volatile修饰符适用于以下场景：某个属性被多个线程共享，其中有一个线程修改了此属性，其他线程可以立即得到修改后的值，比如
+booleanflag或者作为触发器，实现轻量级同步。
+
+volatile属性的读写操作都是无锁的，它不能替代synchronized，因为它没有提供原子性和互斥性。因为无锁，不需要花费时间在获取锁
+和释放锁上，所以说它是低成本的。
+
+volatile只能作用于属性，我们用volatile修饰属性，这样compilers就不会对这个属性做指令重排序。
+
+volatile提供了可见性，任何一个线程对其的修改将立马对其他线程可见，volatile属性不会被线程缓存，始终从主存中读取。
+
+volatile可以在单例双重检查中实现可见性和禁止指令重排序，从而保证安全性。
+
+### Volatile和Synchronized区别
+
+1、volatile只能修饰实例变量和类变量，而synchronized可以修饰方法，以及代码块。
+
+2、volatile保证数据的可见性，但是不保证原子性（多线程进行写操作，不保证线程安全）；而synchronized是一种排他（互斥）的机制。volatile用于禁止指令重排序：可以解决单例双重检查对象初始化代码执行乱序问题。
+
+3、volatile可以看做是轻量版的synchronized,volatile不保证原子性，但是如果是对一个共享变量进行多个线程的赋值，而没有其他的操
+作，那么就可以用volatile来代替synchronized,因为赋值本身是有原子性的，而volatile又保证了可见性，所以就可以保证线程安全了。
+
+
+
+## synchronized
+
+
+
+## ReentrantLock
+
+
+
 ## 线程中并发锁
 
 ### CAS了解吗，谈一下CAS机制✔
@@ -741,7 +1266,7 @@ CAS是Java中Unsafe类中里面的一个方法，全程是CompareAndSwap，**主
 
   用 volatile 修饰共享变量会在读、写共享变量时加入不同的屏障，阻止其他读写操作越过屏障，从而达到阻止重排序的效果
 
-### synchronized 和 volatile 的区别是什么
+### synchronized 和 volatile 的区别是什么✔
 
 - synchronized解决的是执行控制的问题，阻止其他线程获取当前对象的监控锁
 - volatile解决的是内存的可见性
